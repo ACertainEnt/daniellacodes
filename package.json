@@ -1,0 +1,54 @@
+{
+  "name": "daniellacodes",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "DANIELLACODES \u2014 a private, mobile-first full-stack engineering academy for one student and one instructor.",
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "dev:once": "tsx server/index.ts",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "check:curriculum": "tsx scripts/verify-curriculum.ts",
+    "verify:api": "node scripts/verify-api.mjs",
+    "verify:render": "tsx scripts/smoke-render.tsx"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.4",
+    "@codemirror/lang-sql": "^6.8.0",
+    "@codemirror/language": "^6.11.0",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.36.5",
+    "@supabase/supabase-js": "^2.49.0",
+    "@uiw/react-codemirror": "^4.24.2",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "framer-motion": "^12.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.487.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.5.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.8",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "happy-dom": "^21.0.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

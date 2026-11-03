@@ -1,0 +1,41 @@
+/* Spring-like motion, short and responsive. All decorative animation is
+   disabled for users who request reduced motion. */
+@keyframes float-signature {
+  0%, 100% { transform: perspective(400px) rotateX(7deg) translateY(0); }
+  50% { transform: perspective(400px) rotateX(7deg) translateY(-4px); }
+}
+.creator-signature { animation: float-signature 5s ease-in-out infinite; }
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(.86) translateY(8px); }
+  70% { transform: scale(1.02) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pop-in { animation: pop-in .32s cubic-bezier(.2,.9,.25,1.1) both; }
+
+@keyframes gentle-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.gentle-bob { animation: gentle-bob 3.2s ease-in-out infinite; }
+
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translateY(-10px) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(60px) rotate(220deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 40px; }
+}
+.skeleton { background-image: linear-gradient(45deg, var(--surface-2) 25%, transparent 25%, transparent 75%, var(--surface-2) 75%); background-size: 40px 40px; animation: shimmer 1s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .creator-signature { animation: none; }
+}

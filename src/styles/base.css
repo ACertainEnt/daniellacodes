@@ -1,0 +1,104 @@
+/* ── DANIELLACODES · Comic Green design tokens ───────────────────────── */
+:root {
+  --green: #63C96B;
+  --green-soft: #A8E6A3;
+  --green-deep: #174D35;
+  --green-ink: #0f3a26;
+  --bg: #F8FAF5;
+  --surface: #FFFFFF;
+  --surface-2: #F0F6EC;
+  --text: #17251B;
+  --text-soft: #5B6B60;
+  --outline: #1A211C;
+  --danger: #E4584F;
+  --danger-soft: #FFE7E3;
+  --amber: #F2B544;
+  --amber-soft: #FFF3D6;
+  --shadow: #1A211C;
+  --shadow-soft: rgba(26, 33, 28, .12);
+  --halftone: radial-gradient(rgba(23, 77, 53, .085) 1.1px, transparent 1.2px);
+  --halftone-size: 14px 14px;
+  --radius-lg: 26px;
+  --radius-md: 18px;
+  --radius-sm: 12px;
+  --border: 2.5px solid var(--outline);
+  --offset: 5px 5px 0 var(--shadow);
+  --offset-sm: 3px 3px 0 var(--shadow);
+  --font-display: 'Bangers', 'Nunito Sans', system-ui, sans-serif;
+  --font-body: 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --topbar-h: 62px;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --green: #63C96B;
+  --green-soft: #8CD987;
+  --green-deep: #A8E6A3;
+  --green-ink: #DDF7D9;
+  --bg: #101814;
+  --surface: #19251E;
+  --surface-2: #223229;
+  --text: #F1F7EF;
+  --text-soft: #A9BFAD;
+  --outline: #0A110C;
+  --danger: #FF8078;
+  --danger-soft: #3A2320;
+  --amber: #FFC95C;
+  --amber-soft: #3A3019;
+  --shadow: #060B07;
+  --shadow-soft: rgba(0, 0, 0, .4);
+  --halftone: radial-gradient(rgba(168, 230, 163, .075) 1.1px, transparent 1.2px);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--text);
+  background-color: var(--bg);
+  background-image: var(--halftone);
+  background-size: var(--halftone-size);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 800; line-height: 1.15; }
+p { margin: 0 0 .85em; }
+a { color: var(--green-deep); text-decoration: none; }
+:root[data-theme='dark'] a { color: var(--green-soft); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+img { max-width: 100%; display: block; }
+ul, ol { padding-left: 1.25rem; }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; border-radius: 6px; }
+::selection { background: var(--green); color: var(--outline); }
+
+.display { font-family: var(--font-display); letter-spacing: .035em; font-weight: 400; }
+.eyebrow { font-size: .72rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--text-soft); }
+.muted { color: var(--text-soft); }
+.center { text-align: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Layout */
+.app-shell { display: flex; min-height: 100vh; }
+.app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.app-content { width: 100%; max-width: 1040px; margin: 0 auto; padding: 20px 16px calc(120px + var(--safe-bottom)); flex: 1; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.grid { display: grid; gap: 14px; }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
+
+@media (min-width: 900px) {
+  .app-content { padding: 28px 30px 90px; }
+  body { font-size: 16px; }
+}
