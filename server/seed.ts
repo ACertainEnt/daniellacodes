@@ -15,7 +15,10 @@ const mulberry32 = (seed: number) => () => {
 const hashSeed = (text: string) => {
   let h = 2166136261;
   for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return h >>> 0;
+  // Signed 32-bit: mulberry32() applies `seed |= 0` anyway, so the PRNG
+  // sequence is identical, but the stored value now fits Postgres `integer`
+  // (SQLite accepted the unsigned 0..4294967295 range, Postgres does not).
+  return h | 0;
 };
 
 /** Deterministically choose a DIFFERENT question set for each variant. */

@@ -56908,7 +56908,7 @@ var hashSeed = (text) => {
     h ^= text.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
-  return h >>> 0;
+  return h | 0;
 };
 function variantQuestionIds(questions, variantIndex, count, requiresCode) {
   const sorted = [...questions].sort((a, b) => String(a.id).localeCompare(String(b.id)));
