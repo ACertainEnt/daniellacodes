@@ -1,5 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
+import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { env } from './env';
@@ -17,6 +18,10 @@ async function main() {
   await seedDatabase();
 
   const app = express();
+  // Create the HTTP server up front so Vite's HMR websocket can be attached
+  // to THIS server. Otherwise Vite opens a second port that the proxied
+  // preview host (always port 443) can never reach.
+  const httpServer = http.createServer(app);
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '3mb' }));
@@ -27,7 +32,11 @@ async function main() {
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    // Arena's live preview embeds this app in an iframe whose parent origin is
+    // NOT the proxied preview host. `X-Frame-Options: SAMEORIGIN` therefore
+    // breaks the preview entirely. Use CSP frame-ancestors instead: it keeps
+    // clickjacking protection while explicitly allowing the preview proxy.
+    const frameAncestors = "frame-ancestors 'self' https://*.e2b.app https://e2b.app;";
     if (env.isProd) {
       res.setHeader('Content-Security-Policy',
         "default-src 'self'; script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com; " +
@@ -35,8 +44,12 @@ async function main() {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https://i.ytimg.com https://*.googleusercontent.com; " +
-        "connect-src 'self' https://www.youtube-nocookie.com https://www.youtube.com; " +
-        "worker-src 'self' blob:;");
+        "connect-src 'self' https://www.youtube-nocookie.com https://www.youtube.com wss://*.e2b.app; " +
+        "worker-src 'self' blob:; " + frameAncestors);
+    } else {
+      // Only the framing policy in development; Vite needs inline scripts,
+      // eval and its HMR websocket, so no default-src restriction here.
+      res.setHeader('Content-Security-Policy', frameAncestors);
     }
     next();
   });
@@ -62,7 +75,7 @@ async function main() {
       configFile: path.resolve(root, 'vite.config.ts'),
       root,
       appType: 'custom',
-      server: { middlewareMode: true, hmr: { clientPort: 443 } },
+      server: { middlewareMode: true, hmr: { server: httpServer, clientPort: 443 } },
     });
     app.use(vite.middlewares);
     app.use('*', async (req: Request, res: Response, next: NextFunction) => {
@@ -80,7 +93,7 @@ async function main() {
     res.status(500).json({ error: 'Something went wrong on the server. No internal details are exposed.' });
   });
 
-  app.listen(env.port, '0.0.0.0', () => {
+  httpServer.listen(env.port, '0.0.0.0', () => {
     console.log(`\n  DANIELLACODES ready → http://0.0.0.0:${env.port}`);
     console.log(`  data driver: ${env.driver}   auth: ${env.authMode}   mode: ${env.isProd ? 'production' : 'development'}`);
     if (env.devFallbackSecret && !env.isProd) console.log('  ⚠  Set AUTH_SECRET in .env before deploying.\n');
