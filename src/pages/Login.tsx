@@ -45,6 +45,7 @@ export default function Login() {
           </div>
           <h2 style={{ fontSize: '1.15rem', marginBottom: 4 }}>Welcome back.</h2>
           <p className="muted" style={{ fontSize: '.88rem' }}>Learn it. Build it. Understand it. Sign in with the account ID Ace created for you.</p>
+          {!navigator.onLine && <div className="warn-note">Sign-in requires an internet connection. If you were already signed in, keep the academy open to use saved lesson text.</div>}
           <form onSubmit={submit} className="stack" style={{ marginTop: 18, gap: 14 }}>
             <div>
               <label className="field-label" htmlFor="account">Account ID</label>

@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { api, post, fmtDate } from '@/lib/api';
 import { Bouncy } from './Bouncy';
 import { Sheet } from './overlays';
+import { InstallAcademy } from './InstallAcademy';
 import { CreatorFooter } from './ui';
 import type { DashboardData } from '@shared/types';
 
@@ -71,6 +72,7 @@ export function Shell({ nav, subtitle, children, student }: { nav: NavItem[]; su
         <main className="app-content">
           {children}
           <CreatorFooter />
+          <InstallAcademy />
         </main>
       </div>
 
