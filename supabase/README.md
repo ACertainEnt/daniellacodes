@@ -23,8 +23,8 @@ The app runs today with the local SQLite driver. To switch to Supabase Auth + Po
 4. **Create exactly two Auth users manually** (Authentication → Users → Add user):
    | Auth email (internal) | Account ID used at login | Role |
    |---|---|---|
-   | `daniella@daniellacodes.local` | `DANIELLACODES` | `student` |
-   | `ace@daniellacodes.local` | `ACECODES` | `instructor` |
+   | `daniellacodes@daniellacodes.local` | `DANIELLACODES` | `student` |
+   | `acecodes@daniellacodes.local` | `ACECODES` | `instructor` |
 
    The login form asks for the **account ID**, not the email. `server/auth.ts` maps
    the account ID to its internal email via `profiles.account_id`. Set each password
