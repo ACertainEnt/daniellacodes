@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { SessionCard, EmptyState } from '@/components/ui';
 import { ConfirmSheet } from '@/components/overlays';
+import { OfflineLessons } from '@/components/OfflineLearning';
 import { useExamLeavingGuard } from '@/lib/useExamGuard';
 import type { DashboardData } from '@shared/types';
 
@@ -9,13 +10,14 @@ export default function SessionsPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const { pending, confirm, cancel } = useExamLeavingGuard();
   useEffect(() => { api<DashboardData>('/api/student/dashboard').then(setData).catch(() => {}); }, []);
-  if (!data) return <div className="card soft skeleton" style={{ height: 300, borderRadius: 24 }} />;
+  if (!data) return <><OfflineLessons /><div className="comic-note">The session list needs an internet connection. Saved lessons are listed above when available.</div></>;
   const completed = data.sessions.filter(s => s.state === 'completed');
   const active = data.sessions.filter(s => s.state === 'active');
   const locked = data.sessions.filter(s => s.state === 'locked');
 
   return (
     <div className="stack">
+      <OfflineLessons />
       <div>
         <div className="eyebrow">The complete curriculum</div>
         <h1 className="section-title" style={{ fontSize: '2rem' }}>14 sessions. One engineer.</h1>

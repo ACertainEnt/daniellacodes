@@ -8,6 +8,8 @@ import { ConfirmSheet, toast } from '@/components/overlays';
 import { VideoLesson, LocalVideoPlayer } from '@/components/VideoLesson';
 import { useAskAce } from '@/components/AskAce';
 import { useExamLeavingGuard } from '@/lib/useExamGuard';
+import { localGet, localPut } from '@/lib/offline';
+import { LessonNotes, rememberLesson } from '@/components/OfflineLearning';
 import type { StudentLessonDetail } from '@shared/types';
 
 const VIDEO_EXT = /\.(mp4|webm|ogg)$/i;
@@ -19,18 +21,52 @@ export default function LessonPage() {
   const [lesson, setLesson] = useState<StudentLessonDetail | null>(null);
   const [error, setError] = useState('');
   const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [offlineCopy, setOfflineCopy] = useState(false);
   const [busy, setBusy] = useState(false);
   const { pending, confirm, cancel } = useExamLeavingGuard();
 
   useEffect(() => {
-    setAnswers({});
+    let active = true;
+    setAnswers({}); setLesson(null); setError(''); setOfflineCopy(false);
+    localGet<Record<number, number>>('answers:' + lessonId).then(saved => { if (active && saved) setAnswers(saved); }).catch(() => {});
     api<StudentLessonDetail>(`/api/student/lessons/${lessonId}`)
       .then(d => {
+        if (!active) return;
         setLesson(d);
         setContext({ sessionId: d.sessionId, lessonId: d.id, sessionTitle: d.sessionTitle, lessonTitle: d.title });
+        localPut('lesson:' + lessonId, d).then(() => rememberLesson({ id: d.id, title: d.title })).catch(() => {});
       })
-      .catch(e => setError(e.message));
+      .catch(async e => {
+        // Never use an old cached lesson to bypass a server authorization failure.
+        if (!(e instanceof TypeError) && navigator.onLine) { if (active) setError(e.message); return; }
+        try {
+          const cached = await localGet<StudentLessonDetail>('lesson:' + lessonId);
+          if (!active) return;
+          if (!cached) { setError('This lesson is not saved on this device yet. Connect to the internet to open it.'); return; }
+          setLesson(cached); setOfflineCopy(true);
+        } catch { if (active) setError('Offline storage is unavailable. Connect to open this lesson.'); }
+      });
+    return () => { active = false; };
   }, [lessonId, setContext]);
+
+  // Restore only after this lesson has rendered, and retain the position while
+  // opening sheets. Positions are device-local, not official progress.
+  useEffect(() => {
+    if (!lesson || lesson.id !== lessonId) return;
+    const key = 'dc-reading:' + lessonId;
+    let timer = 0;
+    let restore = 0;
+    try {
+      const y = Number(localStorage.getItem(key));
+      if (Number.isFinite(y) && y > 0) restore = window.setTimeout(() => window.scrollTo(0, y), 100);
+    } catch { /* storage is optional */ }
+    const save = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { try { localStorage.setItem(key, String(window.scrollY)); } catch { /* storage is optional */ } }, 300);
+    };
+    window.addEventListener('scroll', save, { passive: true });
+    return () => { window.clearTimeout(restore); window.clearTimeout(timer); window.removeEventListener('scroll', save); try { localStorage.setItem(key, String(window.scrollY)); } catch { /* storage is optional */ } };
+  }, [lesson?.id, lessonId]);
 
   const localVideos = useMemo(() => lesson?.assets.filter(a => VIDEO_EXT.test(a.url)) || [], [lesson]);
   const vtt = lesson?.subtitles[0]?.vtt;
@@ -51,6 +87,7 @@ export default function LessonPage() {
 
   return (
     <div className="stack">
+      {offlineCopy && <div className="comic-note">Offline copy · Lesson text is saved on this device. Videos, Ask Ace and official assessments require internet. Completion still requires a connection.</div>}
       <div className="row-between">
         <Bouncy variant="ghost" onClick={() => navigate('/app/session/' + lesson.sessionId)}><ArrowLeft size={16} /> {lesson.sessionTitle}</Bouncy>
         <Pill tone={lesson.completed ? 'green' : 'plain'}>{lesson.completed ? 'Completed ✓' : 'In progress'}</Pill>
@@ -149,6 +186,7 @@ export default function LessonPage() {
       {/* 11 — Knowledge check (lesson-only, never exam answers) */}
       <section className="stack" style={{ gap: 10 }}>
         <div className="divider-label">11 · Short knowledge check</div>
+        <p className="muted">Practice only — answers are saved on this device, not submitted as an official exam.</p>
         {lesson.knowledgeCheck.length === 0 && <EmptyState title="No knowledge check for this lesson yet" />}
         {lesson.knowledgeCheck.map((q, i) => {
           const picked = answers[i];
@@ -157,7 +195,7 @@ export default function LessonPage() {
               <strong style={{ fontSize: '.9rem' }}>{i + 1}. {q.question}</strong>
               {q.options.map((opt, j) => (
                 <button key={j} className={`check-option ${picked === undefined ? '' : j === q.answerIndex ? 'correct' : picked === j ? 'wrong' : ''}`}
-                  onClick={() => setAnswers(a => ({ ...a, [i]: j }))} disabled={picked !== undefined}>
+                  onClick={() => { const next = { ...answers, [i]: j }; setAnswers(next); localPut('answers:' + lessonId, next).catch(() => toast.show('Could not save this practice answer on this device.', 'warn')); }} disabled={picked !== undefined}>
                   <span className="option-marker">{String.fromCharCode(65 + j)}</span><span>{opt}</span>
                 </button>
               ))}
@@ -166,6 +204,8 @@ export default function LessonPage() {
           );
         })}
       </section>
+
+      <LessonNotes key={lessonId} lessonId={lessonId} />
 
       {/* 12 — Recap */}
       <ComicCard className="lesson-section soft">
