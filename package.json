@@ -12,7 +12,8 @@
     "start": "NODE_ENV=production tsx server/index.ts",
     "check:curriculum": "tsx scripts/verify-curriculum.ts",
     "verify:api": "node scripts/verify-api.mjs",
-    "verify:render": "tsx scripts/smoke-render.tsx"
+    "verify:render": "tsx scripts/smoke-render.tsx",
+    "build:vercel": "npm run build && esbuild server/vercel.ts --bundle --platform=node --format=esm --target=node22 --outfile=api/index.js --banner:js=\"import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);\" --log-level=warning"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",

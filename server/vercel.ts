@@ -1,7 +1,7 @@
-/* Vercel Node function: the whole Express API behind a single handler.
-   Static files come from the Vite build (dist/) and are served by Vercel's
-   CDN; vercel.json rewrites /api/* and /files/* to this function. */
-import { createApp } from '../server/app';
+/* Vercel Node function entry. This file is bundled by `npm run build:vercel`
+   into a single self-contained api/index.js, because Vercel's TS function
+   transpiler does not follow imports outside the api/ directory. */
+import { createApp } from './app';
 
 type Handler = (req: any, res: any) => void;
 let ready: Promise<Handler> | undefined;
