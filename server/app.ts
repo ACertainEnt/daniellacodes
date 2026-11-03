@@ -2,11 +2,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cookieParser from 'cookie-parser';
 import fs from 'node:fs';
 import path from 'node:path';
-import { env, randomId, now } from './env';
-import { db } from './db';
-import { login } from './auth';
-import { putFile } from './storage';
-import { createClient } from '@supabase/supabase-js';
+import { env } from './env';
 import { seedDatabase } from './seed';
 import { authRouter } from './routes/auth';
 import { studentRouter } from './routes/student';
@@ -58,49 +54,6 @@ export async function createApp() {
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, driver: env.driver, auth: env.authMode, time: new Date().toISOString() }));
 
-  // TEMPORARY deployment-verification probe. Removed after verification.
-  if (process.env.DEBUG_BOOT === '1') {
-    app.get('/api/_verify', async (req, res) => {
-      const expected = process.env.VERIFY_TOKEN || '';
-      if (!expected || req.query.t !== expected) return res.status(404).json({ error: 'Not found.' });
-      const out: Record<string, any> = { driver: env.driver, authMode: env.authMode };
-      try {
-        const student = await login(env.studentAccount, env.studentPassword);
-        const instructor = await login(env.instructorAccount, env.instructorPassword);
-        const bad = await login(env.studentAccount, 'definitely-not-the-password');
-        out.student = student ? { role: (student.profile as any).role, account: (student.profile as any).accountId, jwt: !!student.token } : null;
-        out.instructor = instructor ? { role: (instructor.profile as any).role, account: (instructor.profile as any).accountId, jwt: !!instructor.token } : null;
-        out.wrongPasswordRejected = bad === null;
-        out.rolesSeparate = out.student?.role === 'student' && out.instructor?.role === 'instructor';
-        out.counts = {
-          sessions: (await db.all('sessions')).length,
-          lessons: (await db.all('lessons')).length,
-          exams: (await db.all('exams')).length,
-          questions: (await db.all('question_bank')).length,
-          variants: (await db.all('exam_variants')).length,
-          videos: (await db.all('video_resources')).length,
-          seedComplete: !!(await db.one('settings', { key: 'seed_complete' })),
-        };
-        const profile = await db.one('profiles', { account_id: env.studentAccount });
-        const lesson = (await db.all('lessons', { limit: 1 }))[0];
-        const testId = randomId();
-        await db.insert('lesson_progress', { id: testId, profile_id: profile!.id, lesson_id: lesson.id, completed_at: now() });
-        const written = await db.one('lesson_progress', { id: testId });
-        await db.remove('lesson_progress', { id: testId });
-        const removed = await db.one('lesson_progress', { id: testId });
-        out.dbWriteReadDelete = !!written && removed === null;
-        const storageName = '__verify.txt';
-        const storageUrl = await putFile('subtitles', storageName, 'DANIELLACODES production storage probe', 'text/plain');
-        const client = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, { auth: { persistSession: false } });
-        const { data: buckets } = await client.storage.listBuckets();
-        out.storage = { upload: !!storageUrl, buckets: (buckets || []).map(b => b.name) };
-        await client.storage.from('subtitles').remove([storageName]);
-      } catch (e: any) {
-        out.error = String(e?.message || e);
-      }
-      return res.json(out);
-    });
-  }
   app.use('/api/auth', authRouter);
   app.use('/api/student', studentRouter);
   app.use('/api/exams', examRouter);

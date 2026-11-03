@@ -52365,29 +52365,6 @@ var audit = async (actorId, action, target, detail) => {
   await db.insert("audit_log", { actor_id: actorId, action, target: target ?? null, detail_json: detail ?? null, created_at: now() });
 };
 
-// server/storage.ts
-import fs3 from "node:fs/promises";
-import path3 from "node:path";
-async function putFile(bucket, name, content, contentType) {
-  const safe = name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  if (env.driver === "supabase") {
-    const client = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, { auth: { persistSession: false } });
-    const { error } = await client.storage.from(bucket).upload(safe, content, { contentType, upsert: true });
-    if (error) throw new Error(`Storage upload failed: ${error.message}`);
-    if (bucket === "lesson-assets") {
-      const { data } = client.storage.from(bucket).getPublicUrl(safe);
-      return data.publicUrl;
-    }
-    const { data: signed, error: signErr } = await client.storage.from(bucket).createSignedUrl(safe, 60 * 60 * 24 * 30);
-    if (signErr) throw new Error(`Signed URL failed: ${signErr.message}`);
-    return signed.signedUrl;
-  }
-  const dir = path3.join(env.storageDir, bucket);
-  await fs3.mkdir(dir, { recursive: true });
-  await fs3.writeFile(path3.join(dir, safe), content);
-  return `/files/${bucket}/${safe}`;
-}
-
 // shared/topics-a.ts
 var TOPICS_A = {
   "what-is-programming": {
@@ -58113,6 +58090,29 @@ async function fetchMetadata(parsed) {
   }
 }
 
+// server/storage.ts
+import fs3 from "node:fs/promises";
+import path3 from "node:path";
+async function putFile(bucket, name, content, contentType) {
+  const safe = name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  if (env.driver === "supabase") {
+    const client = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, { auth: { persistSession: false } });
+    const { error } = await client.storage.from(bucket).upload(safe, content, { contentType, upsert: true });
+    if (error) throw new Error(`Storage upload failed: ${error.message}`);
+    if (bucket === "lesson-assets") {
+      const { data } = client.storage.from(bucket).getPublicUrl(safe);
+      return data.publicUrl;
+    }
+    const { data: signed, error: signErr } = await client.storage.from(bucket).createSignedUrl(safe, 60 * 60 * 24 * 30);
+    if (signErr) throw new Error(`Signed URL failed: ${signErr.message}`);
+    return signed.signedUrl;
+  }
+  const dir = path3.join(env.storageDir, bucket);
+  await fs3.mkdir(dir, { recursive: true });
+  await fs3.writeFile(path3.join(dir, safe), content);
+  return `/files/${bucket}/${safe}`;
+}
+
 // server/routes/media.ts
 var mediaRouter = (0, import_express5.Router)();
 mediaRouter.use(requireUser);
@@ -58777,48 +58777,6 @@ async function createApp() {
     next();
   });
   app.get("/api/health", (_req, res) => res.json({ ok: true, driver: env.driver, auth: env.authMode, time: (/* @__PURE__ */ new Date()).toISOString() }));
-  if (process.env.DEBUG_BOOT === "1") {
-    app.get("/api/_verify", async (req, res) => {
-      const expected = process.env.VERIFY_TOKEN || "";
-      if (!expected || req.query.t !== expected) return res.status(404).json({ error: "Not found." });
-      const out = { driver: env.driver, authMode: env.authMode };
-      try {
-        const student = await login(env.studentAccount, env.studentPassword);
-        const instructor2 = await login(env.instructorAccount, env.instructorPassword);
-        const bad = await login(env.studentAccount, "definitely-not-the-password");
-        out.student = student ? { role: student.profile.role, account: student.profile.accountId, jwt: !!student.token } : null;
-        out.instructor = instructor2 ? { role: instructor2.profile.role, account: instructor2.profile.accountId, jwt: !!instructor2.token } : null;
-        out.wrongPasswordRejected = bad === null;
-        out.rolesSeparate = out.student?.role === "student" && out.instructor?.role === "instructor";
-        out.counts = {
-          sessions: (await db.all("sessions")).length,
-          lessons: (await db.all("lessons")).length,
-          exams: (await db.all("exams")).length,
-          questions: (await db.all("question_bank")).length,
-          variants: (await db.all("exam_variants")).length,
-          videos: (await db.all("video_resources")).length,
-          seedComplete: !!await db.one("settings", { key: "seed_complete" })
-        };
-        const profile = await db.one("profiles", { account_id: env.studentAccount });
-        const lesson = (await db.all("lessons", { limit: 1 }))[0];
-        const testId = randomId();
-        await db.insert("lesson_progress", { id: testId, profile_id: profile.id, lesson_id: lesson.id, completed_at: now() });
-        const written = await db.one("lesson_progress", { id: testId });
-        await db.remove("lesson_progress", { id: testId });
-        const removed = await db.one("lesson_progress", { id: testId });
-        out.dbWriteReadDelete = !!written && removed === null;
-        const storageName = "__verify.txt";
-        const storageUrl = await putFile("subtitles", storageName, "DANIELLACODES production storage probe", "text/plain");
-        const client = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, { auth: { persistSession: false } });
-        const { data: buckets } = await client.storage.listBuckets();
-        out.storage = { upload: !!storageUrl, buckets: (buckets || []).map((b) => b.name) };
-        await client.storage.from("subtitles").remove([storageName]);
-      } catch (e) {
-        out.error = String(e?.message || e);
-      }
-      return res.json(out);
-    });
-  }
   app.use("/api/auth", authRouter);
   app.use("/api/student", studentRouter);
   app.use("/api/exams", examRouter);
@@ -58850,7 +58808,7 @@ async function handler(req, res) {
     console.error("[boot]", err?.stack || err);
     res.statusCode = 500;
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify(process.env.DEBUG_BOOT === "1" ? { error: "boot_failed", detail: String(err?.message || err), stack: String(err?.stack || "").slice(0, 2e3) } : { error: "Something went wrong on the server. No internal details are exposed." }));
+    res.end(JSON.stringify({ error: "Something went wrong on the server. No internal details are exposed." }));
   }
 }
 var config = { maxDuration: 300 };
