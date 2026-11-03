@@ -15,7 +15,10 @@ const mulberry32 = (seed: number) => () => {
 const hashSeed = (text: string) => {
   let h = 2166136261;
   for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return h >>> 0;
+  // Signed 32-bit: mulberry32() applies `seed |= 0` anyway, so the PRNG
+  // sequence is identical, but the stored value now fits Postgres `integer`
+  // (SQLite accepted the unsigned 0..4294967295 range, Postgres does not).
+  return h | 0;
 };
 
 /** Deterministically choose a DIFFERENT question set for each variant. */
@@ -39,6 +42,10 @@ export function variantQuestionIds(questions: Row[], variantIndex: number, count
 
 export async function seedDatabase() {
   await db.init();
+  // Serverless instances cold-start frequently. Seeding is idempotent, but
+  // re-checking ~300 rows on every start is wasteful and can exceed a function
+  // timeout, so mark completion once and short-circuit afterwards.
+  if (await db.one('settings', { key: 'seed_complete' })) return;
   const stamp = now();
 
   // ── Accounts. No public registration exists anywhere in the app. ──
@@ -142,5 +149,6 @@ export async function seedDatabase() {
     }
   }
 
+  await db.insert('settings', { key: 'seed_complete', value: stamp });
   console.log(`[seed] ready — ${SESSIONS.length} sessions, ${SESSIONS.reduce((n, s) => n + s.lessons.length, 0)} lessons, ${QUESTION_BANK.length} questions, ${SEED_VIDEOS.length} verified video sources`);
 }

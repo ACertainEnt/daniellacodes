@@ -2,6 +2,28 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env } from '../env';
 import type { Repo, Row, Where, QueryOptions } from './index';
 
+/** SQLite stores booleans as INTEGER 0/1; Postgres uses real booleans. The
+ *  rest of the app is written against the SQLite shape, so translate at the
+ *  driver boundary. Without this, seed inserts and `where: { passed: 1 }`
+ *  filters fail against PostgREST/Postgres. */
+const BOOL_COLUMNS = new Set([
+  'published', 'approved', 'is_playlist', 'checked', 'requires_code',
+  'manual_review', 'passed', 'hidden', 'read',
+]);
+const toPg = (value: unknown) =>
+  value === 1 || value === 0 || value === '1' || value === '0' ? Boolean(Number(value)) : value;
+const fromPg = (value: unknown) => (typeof value === 'boolean' ? (value ? 1 : 0) : value);
+const rowToPg = (row: Row): Row => {
+  const out: Row = {};
+  for (const [key, value] of Object.entries(row)) out[key] = BOOL_COLUMNS.has(key) ? toPg(value) : value;
+  return out;
+};
+const rowFromPg = (row: Row): Row => {
+  const out: Row = { ...row };
+  for (const key of Object.keys(out)) if (BOOL_COLUMNS.has(key)) out[key] = fromPg(out[key]);
+  return out;
+};
+
 /** Production driver. Uses the SERVICE ROLE key, which is only ever read here
  *  on the server. It bypasses RLS, so every route ALSO enforces roles through
  *  server middleware; the shipped RLS policies protect any direct client use.
@@ -35,7 +57,7 @@ export class SupabaseRepo implements Repo {
       } else if (raw === null) {
         q = q.is(col, null);
       } else {
-        q = q.eq(col, raw);
+        q = q.eq(col, BOOL_COLUMNS.has(col) ? toPg(raw) : raw);
       }
     }
     return q;
@@ -48,7 +70,7 @@ export class SupabaseRepo implements Repo {
     if (opts.limit) q = q.limit(opts.limit);
     const { data, error } = await q;
     if (error) throw new Error(`[db:${table}] ${error.message}`);
-    return (data || []) as Row[];
+    return ((data || []) as Row[]).map(rowFromPg);
   }
 
   async one(table: string, where: Where): Promise<Row | null> {
@@ -57,13 +79,13 @@ export class SupabaseRepo implements Repo {
   }
 
   async insert(table: string, row: Row): Promise<Row> {
-    const { data, error } = await this.client.from(table).insert(row).select().single();
+    const { data, error } = await this.client.from(table).insert(rowToPg(row)).select().single();
     if (error) throw new Error(`[db:${table}] ${error.message}`);
-    return data as Row;
+    return rowFromPg(data as Row);
   }
 
   async update(table: string, where: Where, patch: Row): Promise<number> {
-    let q: any = this.client.from(table).update(patch);
+    let q: any = this.client.from(table).update(rowToPg(patch));
     q = this.applyWhere(q, where);
     const { data, error } = await q.select();
     if (error) throw new Error(`[db:${table}] ${error.message}`);

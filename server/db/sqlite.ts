@@ -45,8 +45,14 @@ export class SqliteRepo implements Repo {
     fs.mkdirSync(env.storageDir, { recursive: true });
     this.conn = new DatabaseSync(env.databasePath);
     this.conn.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
-    const schema = fs.readFileSync(path.resolve(import.meta.dirname, 'schema.sql'), 'utf8');
-    this.conn.exec(schema);
+    // When this module is bundled into a single Vercel function, import.meta
+    // points at the bundle directory, so also look for the source-tree path.
+    const schemaPath = [
+      path.resolve(import.meta.dirname, 'schema.sql'),
+      path.resolve(process.cwd(), 'server/db/schema.sql'),
+    ].find(p => fs.existsSync(p));
+    if (!schemaPath) throw new Error('SQLite schema.sql not found');
+    this.conn.exec(fs.readFileSync(schemaPath, 'utf8'));
   }
 
   private buildWhere(where: Where = {}) {
